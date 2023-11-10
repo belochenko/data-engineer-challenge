@@ -1,42 +1,47 @@
 import sqlite3
 import csv
+from itertools import islice, chain
 
+
+def grouper(iterable, n):
+    """Collect data into fixed-length chunks or blocks"""
+    # islice() allows to slice the generator
+    iterator = iter(iterable)
+    for first in iterator:  # stops when iterator is depleted
+        yield tuple(islice(chain([first], iterator), n - 1))
+
+
+def import_csv_to_sqlite(db_path, csv_file_path, batch_size=500):
+    # Connect to the SQLite database using a context manager
+    with sqlite3.connect(db_path) as conn:
+        cursor = conn.cursor()
+        # Create the trial_data table if it doesn't exist
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS trial_data (
+                trial_code TEXT,
+                hospital_id TEXT
+            )
+        ''')
+
+        try:
+            # Open the CSV file using a context manager
+            with open(csv_file_path, 'r') as csv_file:
+                csv_reader = csv.reader(csv_file, delimiter=';')
+                next(csv_reader)  # Skip the header row
+
+                # Use the grouper function to insert in batches
+                for batch in grouper(csv_reader, batch_size):
+                    cursor.executemany('INSERT INTO trial_data (trial_code, hospital_id) VALUES (?, ?)', batch)
+
+                conn.commit()  # Commit the transaction
+        except sqlite3.DatabaseError as e:
+            print(f"Database error: {e}")
+        except Exception as e:
+            print(f"Error: {e}")
+
+
+# Define paths and call the function
+database_path = '../hospital_data.db'
 csv_file_path = 'data/hospital_trials.csv'
 
-# Connect to an SQLite database (or create it if it doesn't exist)
-conn = sqlite3.connect('../hospital_data.db')
-cursor = conn.cursor()
-
-# Create a table
-cursor.execute('''
-CREATE TABLE IF NOT EXISTS trial_data (
-    trial_code TEXT,
-    hospital_id TEXT
-)
-''')
-
-# Open the CSV file and insert each row into the SQLite table
-with open(csv_file_path, 'r') as csv_file:
-    csv_reader = csv.reader(csv_file, delimiter=';')
-    # Skip the header
-    next(csv_reader)
-    # Prepare a list to collect rows
-    rows_to_insert = []
-    for row in csv_reader:
-        # Add a tuple with the values for each row to the list
-        rows_to_insert.append(tuple(row))
-
-    # Just memory-optimization part
-        # If we have a batch of 500, insert them and clear the list
-        if len(rows_to_insert) == 500:
-            cursor.executemany('INSERT INTO trial_data (trial_code, hospital_id) VALUES (?, ?)', rows_to_insert)
-            conn.commit()
-            rows_to_insert = []
-
-    # Insert any remaining rows
-    if rows_to_insert:
-        cursor.executemany('INSERT INTO trial_data (trial_code, hospital_id) VALUES (?, ?)', rows_to_insert)
-        conn.commit()
-
-# Close the connection
-conn.close()
+import_csv_to_sqlite(database_path, csv_file_path)

@@ -61,6 +61,13 @@ Create a Python script to scrape data from a specified website and store it in a
 ## Testing
 At this point in time, the code does not require pytest-based tests or additional data validation as this would be an unnecessary complication of the code base.
 
+## Conclusion
+- Trialing Scraper: Some data is missing on the cards, such as region.
+134 records have a value of Null. Region - Null:![img.png](static/db.png)
+- Hospitals Data Analysis: Some data in field `hospital_id` is a representation of a number using scientific notation such as `2,83E+178`, data in such form is not used in analysis:
+
+![img.png](static/format.png)
+
 ## Future Improvements
 Despite the use of easily scalable components, the solution can be significantly improved. For example, it is necessary to use PubSub instructions such as AWS Kinensis or Apache Kafka to push data from crawlers to the pipeline. We need to containerise the application and implement the ability to track changes to the website and quickly augment our data without wasting resources on repetitive data parsing.
 DAG-based data orchestration tools also have a place. At the same time, storing data within a Data Warehouse is rather unprofitable. The Datalake (or Data lakehouse) approach is necessary, where large data objects are stored in an object store (S3, Ceph) and will be reused only in analytics.
